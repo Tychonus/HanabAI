@@ -3,15 +3,13 @@ package agents;
 import hanabAI.*;
 
 /**
- * A simple reflex agent for playing Hanabi. The agent uses the following rules:
- * - Play a card if it is definitely able to be played. - Discard a card if it
- * is definitely not required. - with probability 0.1*fuse play a card that
- * matches the colour or number of a required card, with probability 0.4 give a
- * colour hint to the next player with a required card, with probability 0.4
- * give a number hint to the next player with a required card, otherwise discard
- * a random card.
+ * A rule based agent to play the game Hanabi, based on the Van Den Bergh
+ * rulings Follows the given ruleset: - If lives > 1, and the certainty of a
+ * card is >= 0.6, play it, else play a card that is known to be right - If we
+ * are certain a card is useless, discard it - Give a hint on the next useful
+ * card in sight - Discard the card most likely to be worthless
  * 
- * @author Tim French
+ * @author Brad Milner
  **/
 public class BradAgent implements Agent {
 
@@ -46,22 +44,17 @@ public class BradAgent implements Agent {
     }
 
     /**
-     * Returns the name BaseLine.
+     * Returns the name Bradical.
      * 
-     * @return the String "BaseLine"
+     * @return the String "Bradical"
      */
     public String toString() {
-        return "BaseLine";
+        return "Bradical";
     }
 
     /**
-     * Performs an action given a state. Assumes that they are the player to move.
-     * The strategy will a) play a card if a card is known to be playable, b)
-     * discard a card if a card is known to be useless c) give a number hint to the
-     * next player with a playable card (0.1 per hint token) d) give a colour hint
-     * to the next player with a playable card (0.1 per hint token) e) play a
-     * potential card (0.1 per fuse token) f) discard an unknown card g) discard a
-     * known card
+     * Performs an action given a state, following the rules outlined in class
+     * comment
      * 
      * @param s the current state of the game.
      * @return the action the player takes.
@@ -74,18 +67,15 @@ public class BradAgent implements Agent {
         index = s.getNextPlayer();
         // get any hints
         try {
+            // plays actions in rule sequence
             getHints(s);
+            // if(a==null) a = playProbablySafe(s); TODO IMPLEMENT BEFORE playKnown
             Action a = playKnown(s);
             if (a == null)
                 a = discardKnown(s);
-            if (a == null)
-                a = hint(s);
-            if (a == null)
-                a = playGuess(s);
-            if (a == null)
-                a = discardGuess(s);
-            if (a == null)
-                a = hintRandom(s);
+            // if(a==null) a = nextUsefulHint(s);
+            // if(a==null) a = discardWorst(s);
+
             return a;
         } catch (IllegalActionException e) {
             e.printStackTrace();
@@ -150,99 +140,6 @@ public class BradAgent implements Agent {
                 }
             }
         }
-        return null;
-    }
-
-    // gives hint of first playable card in next players hand
-    // flips a coin to determine whether it is a colour hint or value hint
-    // return null if no hint token left, or no playable cards
-    public Action hint(State s) throws IllegalActionException {
-        if (s.getHintTokens() > 0) {
-            for (int i = 1; i < numPlayers; i++) {
-                int hintee = (index + i) % numPlayers;
-                Card[] hand = s.getHand(hintee);
-                for (int j = 0; j < hand.length; j++) {
-                    Card c = hand[j];
-                    if (c != null && c.getValue() == playable(s, c.getColour())) {
-                        // flip coin
-                        if (Math.random() > 0.5) {// give colour hint
-                            boolean[] col = new boolean[hand.length];
-                            for (int k = 0; k < col.length; k++) {
-                                col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
-                            }
-                            return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
-                        } else {// give value hint
-                            boolean[] val = new boolean[hand.length];
-                            for (int k = 0; k < val.length; k++) {
-                                val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
-                            }
-                            return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
-                        }
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    // with probability 0.05 for each fuse token, play a random card
-    public Action playGuess(State s) throws IllegalActionException {
-        java.util.Random rand = new java.util.Random();
-        for (int i = 0; i < s.getFuseTokens(); i++) {
-            if (rand.nextDouble() < 0.05) {
-                int cardIndex = rand.nextInt(colours.length);
-                colours[cardIndex] = null;
-                values[cardIndex] = 0;
-                return new Action(index, toString(), ActionType.PLAY, cardIndex);
-            }
-        }
-        return null;
-    }
-
-    // discard a random card
-    public Action discardGuess(State s) throws IllegalActionException {
-        if (s.getHintTokens() != 8) {
-            java.util.Random rand = new java.util.Random();
-            int cardIndex = rand.nextInt(colours.length);
-            colours[cardIndex] = null;
-            values[cardIndex] = 0;
-            return new Action(index, toString(), ActionType.DISCARD, cardIndex);
-        }
-        return null;
-    }
-
-    // gives random hint of a card in next players hand
-    // flips a coin to determine whether it is a colour hint or value hint
-    // return null if no hint token left
-    public Action hintRandom(State s) throws IllegalActionException {
-        if (s.getHintTokens() > 0) {
-            int hintee = (index + 1) % numPlayers;
-            Card[] hand = s.getHand(hintee);
-
-            java.util.Random rand = new java.util.Random();
-            int cardIndex = rand.nextInt(hand.length);
-            while (hand[cardIndex] == null)
-                cardIndex = rand.nextInt(hand.length);
-            Card c = hand[cardIndex];
-
-            if (Math.random() > 0.5) {// give colour hint
-                boolean[] col = new boolean[hand.length];
-                for (int k = 0; k < col.length; k++) {
-                    col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
-                }
-                return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
-            } else {// give value hint
-                boolean[] val = new boolean[hand.length];
-                for (int k = 0; k < val.length; k++) {
-                    if (hand[k] == null)
-                        continue;
-                    val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
-                }
-                return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
-            }
-
-        }
-
         return null;
     }
 
