@@ -2,12 +2,7 @@
 AI platform for the card game Hanabi.
 
 # Description
-This projects aims to provide a set of java classes and interface to facilliate agents playing the card game: Hanabi.
-This project is designed for use in the unit 
-[CITS3001](http://teaching.csse.uwa.edu.au/units/CITS3001/) *Algorithms, Agents and Artificial Intelligence* 
-at The University of Western Australia.
-Students may use and modify these files to reserach different artificial intelligence agents in the game Hanabi.
-There will also be an AI bot tournament with the additional rules specified below. 
+Created for CITS3001 Project Sem 2 2018 by Brad Milner
 
 # Rules
 
@@ -103,8 +98,6 @@ the 5 fireworks. Artistic impression is determined by the Firework Manufacturers
 10. Any attempt to cheat will result in immediate disqualification.
 11. Any Agent who crashes, or gets stuck in an infinite loop will be removed from the tournament.
 12. Agents who go over time, will be penalised or removed from the competition.
-
-Good luck.
 
 ## Compiling and Running:
 - Your agent class should be in the package agents, and import the package hanabAI.
