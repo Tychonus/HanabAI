@@ -143,4 +143,17 @@ public class BradAgent implements Agent {
         return null;
     }
 
+    // Gives the next player a hint based on most useful card
+    // Hint is useul IF:
+    // - It is about a card that is playable
+    // - By revealing information about said card, can reveal info on other playable
+    // cards
+    // - If no useful hints can be made, move to next player
+    public Action nextUsefUlHint(State s) throws IllegalActionException {
+        if (s.getHintTokens() > 0) {
+
+        }
+        return null;
+    }
+
 }
