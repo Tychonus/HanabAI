@@ -10,8 +10,10 @@ import hanabAI.*;
  * player about a dispensable card Discard a useless card Discard the oldest
  * card Tell the next player a random fact Discard a random card
  * 
- * CURRENT AVERAGES AS OF 15:06 16/10 3 BRADICAL AGENTS OVER 10 GAMES: 11.6 3
- * BASIC AGENTS OVER 10 GAMES: 8.1 ALREADY BETTER LMAO
+ * CURRENT AVERAGES AS OF 15:06 16/10 3 BRADICAL AGENTS OVER 10 GAMES: 11.6 WITH
+ * HAIL MARY,: 9.4, will need to wait for agent to be completed before passing
+ * judgement on specific ideas BASIC AGENTS OVER 10 GAMES: 8.1 ALREADY BETTER
+ * LMAO
  * 
  * Created via a modified BasicAgent(@author Tim French)
  * 
@@ -74,12 +76,16 @@ public class BradicalAgent implements Agent {
         try {
             getHints(s);
             Action a = playKnown(s);
-            // If lives > 1 ^ deck has no cards, play a playable card, if not a random card
-            // so:
-            // if (a == null && s.getFuseTokens() > 1 && s.getDiscards().size() == 0) {
-            // a = playKnown(s);
-            // }
-            // Tell anyone About Useful --> Modify hint to be for any player and place here
+            // If lives > 1 AND the deck has no cards, play a playable card, otherwise a
+            // random card
+            // This if acts as a semi-safe "hail mary" for when the game draws to a close
+            if (a == null && s.getFuseTokens() > 1 && s.getFinalActionIndex() != -1) {
+                a = playKnown(s);
+                if (a == null) {
+                    a = playGuess(s);
+                }
+            }
+            // Tell anyone About Useful --> Go around players until can provide useful hint
             if (a == null)
                 a = tellAnyoneAboutUseful(s);
             // If info tokens < 4, tell dispensable so:
