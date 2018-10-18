@@ -3,15 +3,15 @@ package agents;
 import hanabAI.*;
 
 /**
- * A Rule based AI agent following the following rules If lives > 1 and the deck
- * has no remaining cards, play a safe card if possible, otherwise anything Play
- * a safe cardd If lives > 1 then play a probably safe card Tell the next player
- * about a useful card If there are less than 4 info tokens, tell the next
- * player about a dispensable card Discard a useless card Discard the oldest
- * card Tell the next player a random fact Discard a random card
- * 
- * TODO FIX MAIN ISSUE OF REPEATED HINTS
- * 
+ * A Rule based AI agent, with the following rules outlined by the Piers
+ * Strategy 1. If more than one life is left, and the deck has run out of cards,
+ * Play a safe card, otherwise a random card if there is no safe cards 2. Play a
+ * safe card 3. If more than one life is left, play a card which is probably
+ * safe ('safe' factor of 0.6) 4. Tell any player about a useful card 5. If
+ * there are less than 4 hint tokens remaining, tell a player about a definitely
+ * unplayable card 6. Discard a card known to be useless 7. Give a random player
+ * a random hint 8. Discard a random card //TODO FIX MAIN ISSUE OF REPEATED
+ * HINTS
  * 
  * Created via a modified BasicAgent(@author Tim French)
  * 
@@ -24,7 +24,7 @@ public class BradicalAgent implements Agent {
     private boolean firstAction = true;
     private int numPlayers;
     private int index;
-    private Card[] hinted; // Stores cards which have already been hinted
+    private Card[] hinted; // Stores cards which have already been hinted, use .getHintedCards
 
     /**
      * Default constructor, does nothing.
@@ -102,16 +102,15 @@ public class BradicalAgent implements Agent {
             }
             if (a == null)
                 a = discardKnown(s);
-            // Discards oldest card. With smart hints this has a reasonable chance of
-            // eliminating a useless card
             if (a == null)
+                a = hintRandom(s);
+            // Discards oldest card. With smart hints this has a reasonable chance of
+            // eliminating a useless card, not risking the discard if the deck is empty
+            if (a == null && s.getFinalActionIndex() == -1)
                 a = discardOldest(s);
             if (a == null)
                 a = discardGuess(s);
-            if (a == null)
-                a = hintRandom(s);
-            if (a == null)
-                a = playGuess(s);
+
             return a;
 
         } catch (IllegalActionException e) {
