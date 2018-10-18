@@ -10,10 +10,8 @@ import hanabAI.*;
  * player about a dispensable card Discard a useless card Discard the oldest
  * card Tell the next player a random fact Discard a random card
  * 
- * CURRENT AVERAGES AS OF 15:06 16/10 3 BRADICAL AGENTS OVER 10 GAMES: 11.6 WITH
- * HAIL MARY,: 9.4, will need to wait for agent to be completed before passing
- * judgement on specific ideas BASIC AGENTS OVER 10 GAMES: 8.1 ALREADY BETTER
- * LMAO
+ * TODO FIX MAIN ISSUE OF REPEATED HINTS
+ * 
  * 
  * Created via a modified BasicAgent(@author Tim French)
  * 
@@ -26,6 +24,7 @@ public class BradicalAgent implements Agent {
     private boolean firstAction = true;
     private int numPlayers;
     private int index;
+    private Card[] hinted; // Stores cards which have already been hinted
 
     /**
      * Default constructor, does nothing.
@@ -75,17 +74,25 @@ public class BradicalAgent implements Agent {
         // get any hints
         try {
             getHints(s);
-            Action a = playKnown(s);
-            // If lives > 1 AND the deck has no cards, play a playable card, otherwise a
-            // random card
-            // This if acts as a semi-safe "hail mary" for when the game draws to a close
+            Action a = null;
+            // This if rule acts as a semi-safe "hail mary" for when the game draws to a
+            // close
             if (a == null && s.getFuseTokens() > 1 && s.getFinalActionIndex() != -1) {
                 a = playKnown(s);
                 if (a == null) {
                     a = playGuess(s);
                 }
             }
+            if (a == null) {
+                a = playKnown(s);
+            }
+            // This if rule takes a risk if it is reasonably safe to do so (60% probability)
+            if (a == null && s.getFuseTokens() > 1) {
+                a = playProbablySafe(s);
+            }
+
             // Tell anyone About Useful --> Go around players until can provide useful hint
+            // Need to fix issue with this and tell dispensible to not repeat given hints
             if (a == null)
                 a = tellAnyoneAboutUseful(s);
 
@@ -95,10 +102,10 @@ public class BradicalAgent implements Agent {
             }
             if (a == null)
                 a = discardKnown(s);
-            // Discard oldest
-            if (a == null) {
+            // Discards oldest card. With smart hints this has a reasonable chance of
+            // eliminating a useless card
+            if (a == null)
                 a = discardOldest(s);
-            }
             if (a == null)
                 a = discardGuess(s);
             if (a == null)
@@ -113,10 +120,8 @@ public class BradicalAgent implements Agent {
         }
     }
 
-    public Action discardOldest(State s) {
-        if (s.getHintTokens() != 8) {
-            return null;
-        }
+    public Action playProbablySafe(State s) throws IllegalActionException {
+
         return null;
     }
 
@@ -176,6 +181,15 @@ public class BradicalAgent implements Agent {
                     return new Action(index, toString(), ActionType.DISCARD, i);
                 }
             }
+        }
+        return null;
+    }
+
+    // Since cards are drawn by being popped from the deck stack, the oldest card in
+    // a hand should be the first card in the hnad
+    public Action discardOldest(State s) throws IllegalActionException {
+        if (s.getHintTokens() != 8) {
+            return new Action(index, toString(), ActionType.DISCARD, 0);
         }
         return null;
     }
