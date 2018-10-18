@@ -88,11 +88,17 @@ public class BradicalAgent implements Agent {
             // Tell anyone About Useful --> Go around players until can provide useful hint
             if (a == null)
                 a = tellAnyoneAboutUseful(s);
-            // If info tokens < 4, tell dispensable so:
-            // if getHintTokens() < 4... dispensible (checks if !playable)
+
+            // Tries to provide smarter hints once tokens become scarce
+            if (a == null && s.getHintTokens() < 4) {
+                a = tellDispensible(s);
+            }
             if (a == null)
                 a = discardKnown(s);
             // Discard oldest
+            if (a == null) {
+                a = discardOldest(s);
+            }
             if (a == null)
                 a = discardGuess(s);
             if (a == null)
@@ -105,6 +111,13 @@ public class BradicalAgent implements Agent {
             e.printStackTrace();
             throw new RuntimeException("Something has gone very wrong");
         }
+    }
+
+    public Action discardOldest(State s) {
+        if (s.getHintTokens() != 8) {
+            return null;
+        }
+        return null;
     }
 
     // updates colours and values from hints received
@@ -161,6 +174,39 @@ public class BradicalAgent implements Agent {
                     colours[i] = null;
                     values[i] = 0;
                     return new Action(index, toString(), ActionType.DISCARD, i);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Starting from next player, cycling through all players, tells a hint
+     * regarding a card that can be discarded TODO ADD "IF FIREWORK IS COMPLETE GIVE
+     * HINT ON COLOURS OF SAID FIREWORK"
+     * 
+     * @param s the current state of the game
+     * @return the action of providing the hint
+     */
+    public Action tellDispensible(State s) throws IllegalActionException {
+        if (s.getHintTokens() > 0) {
+            // Cycles through all players
+            for (int i = 1; i < numPlayers; i++) {
+                int hintee = (index + i) % numPlayers;
+                Card[] hand = s.getHand(hintee);
+
+                // Finds cards which can be discarded
+                for (int j = 0; j < hand.length; j++) {
+                    Card c = hand[j];
+
+                    // If card can be discarded, return action of hint of value
+                    if (c != null && c.getValue() != playable(s, c.getColour())) {
+                        boolean[] val = new boolean[hand.length];
+                        for (int k = 0; k < val.length; k++) {
+                            val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                        }
+                        return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                    }
                 }
             }
         }
