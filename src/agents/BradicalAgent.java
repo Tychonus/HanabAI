@@ -12,8 +12,8 @@ import java.util.Stack;
  * safe ('safe' factor of 0.6) 4. Tell any player about a useful card 5. If
  * there are less than 4 hint tokens remaining, tell a player about a definitely
  * unplayable card 6. Discard a card known to be useless 7. Give a random player
- * a random hint 8. Discard a random card //TODO FIX REPEATED HINTS BY ONLY
- * HINTING TO NEXT PLAYER
+ * a random hint 8. Discard a random card //TODO TO FIX HINT REPETITION,
+ * IMPLEMENT A "COOL OFF" PERIOD FOR HINTING ABOUT A SET CARD
  * 
  * Created via a modified BasicAgent(@author Tim French)
  * 
@@ -218,9 +218,7 @@ public class BradicalAgent implements Agent {
 
     /**
      * Starting from next player, cycling through all players, tells a hint
-     * regarding a card that can be discarded TODO ADD "IF FIREWORK IS COMPLETE GIVE
-     * HINT ON COLOURS OF SAID FIREWORK" Basically if they dont know about what
-     * makes it useless, tell them the information required to make them see it
+     * regarding a card that can be discarded
      * 
      * @param s the current state of the game
      * @return the action of providing the hint
@@ -266,31 +264,31 @@ public class BradicalAgent implements Agent {
     // return null if no hint token left, or no playable cards
     public Action tellAnyoneAboutUseful(State s) throws IllegalActionException {
         if (s.getHintTokens() > 0) {
-            for (int i = 1; i < numPlayers; i++) {
-                int hintee = (int) (Math.random() * ((numPlayers)));
-                Card[] hand = s.getHand(hintee);
-                for (int j = 0; j < hand.length; j++) {
-                    Card c = hand[j];
-                    if (c != null && c.getValue() == playable(s, c.getColour())) {
-                        // flip coin
-                        if (Math.random() > 0.5) {// give colour hint
-                            boolean[] col = new boolean[hand.length];
-                            for (int k = 0; k < col.length; k++) {
-                                col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
-                            }
-                            return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
-                        } else {// give value hint
-                            boolean[] val = new boolean[hand.length];
-                            for (int k = 0; k < val.length; k++) {
-                                val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
-                            }
-                            return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+            int hintee = (index + 1) % numPlayers;
+            Card[] hand = s.getHand(hintee);
+
+            for (int j = 0; j < hand.length; j++) {
+                Card c = hand[j];
+                if (c != null && c.getValue() == playable(s, c.getColour())) {
+                    // flip coin
+                    if (Math.random() > 0.5) {// give colour hint
+                        boolean[] col = new boolean[hand.length];
+                        for (int k = 0; k < col.length; k++) {
+                            col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
                         }
+                        return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
+                    } else {// give value hint
+                        boolean[] val = new boolean[hand.length];
+                        for (int k = 0; k < val.length; k++) {
+                            val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                        }
+                        return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
                     }
                 }
             }
         }
         return null;
+
     }
 
     // with probability 0.05 for each fuse token, play a random card
