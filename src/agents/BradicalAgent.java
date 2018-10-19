@@ -2,6 +2,7 @@ package agents;
 
 import hanabAI.*;
 import java.util.Arrays;
+import java.util.Stack;
 
 /**
  * A Rule based AI agent, with the following rules outlined by the Piers
@@ -11,8 +12,8 @@ import java.util.Arrays;
  * safe ('safe' factor of 0.6) 4. Tell any player about a useful card 5. If
  * there are less than 4 hint tokens remaining, tell a player about a definitely
  * unplayable card 6. Discard a card known to be useless 7. Give a random player
- * a random hint 8. Discard a random card //TODO FIX MAIN ISSUE OF REPEATED
- * HINTS
+ * a random hint 8. Discard a random card //TODO FIX REPEATED HINTS BY ONLY
+ * HINTING TO NEXT PLAYER
  * 
  * Created via a modified BasicAgent(@author Tim French)
  * 
@@ -210,7 +211,6 @@ public class BradicalAgent implements Agent {
     // a hand should be the first card in the hnad
     public Action discardOldest(State s) throws IllegalActionException {
         if (s.getHintTokens() != 8) {
-            System.out.println("DISCARDING OLDEST");
             return new Action(index, toString(), ActionType.DISCARD, playOrder[0]);
         }
         return null;
@@ -227,27 +227,38 @@ public class BradicalAgent implements Agent {
      */
     public Action tellDispensible(State s) throws IllegalActionException {
         if (s.getHintTokens() > 0) {
-            // Cycles through all players
-            for (int i = 1; i < numPlayers; i++) {
-                int hintee = (index + i) % numPlayers;
-                Card[] hand = s.getHand(hintee);
+            // Makes next player the hintee
+            int hintee = (index + 1) % numPlayers;
+            Card[] hand = s.getHand(hintee);
 
-                // Finds cards which can be discarded
-                for (int j = 0; j < hand.length; j++) {
-                    Card c = hand[j];
+            // Finds cards which can be discarded
+            for (int j = 0; j < hand.length; j++) {
+                Card c = hand[j];
 
-                    // If card can be discarded, return action of hint of value
-                    if (c != null && c.getValue() != playable(s, c.getColour())) {
-                        boolean[] val = new boolean[hand.length];
-                        for (int k = 0; k < val.length; k++) {
-                            val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                // If a firework is completed, return a colour hint
+                if (c != null && c.getValue() != playable(s, c.getColour()) && s.getFirework(c.getColour()) != null) {
+                    Stack<Card> firework = s.getFirework(c.getColour());
+                    if (firework.size() == 5) {
+                        boolean[] col = new boolean[hand.length];
+                        for (int k = 0; k < col.length; k++) {
+                            col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
                         }
-                        return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                        return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
                     }
                 }
+                // If card can be discarded, return action of hint of value
+                if (c != null && c.getValue() != playable(s, c.getColour())) {
+                    boolean[] val = new boolean[hand.length];
+                    for (int k = 0; k < val.length; k++) {
+                        val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                    }
+                    return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                }
+
             }
         }
         return null;
+
     }
 
     // gives hint of first playable card in next players hand
