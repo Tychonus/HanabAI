@@ -1,6 +1,7 @@
 package agents;
 
 import hanabAI.*;
+import java.util.Arrays;
 
 /**
  * A Rule based AI agent, with the following rules outlined by the Piers
@@ -24,7 +25,8 @@ public class BradicalAgent implements Agent {
     private boolean firstAction = true;
     private int numPlayers;
     private int index;
-    private Card[] hinted; // Stores cards which have already been hinted, use .getHintedCards
+
+    int[] playOrder = new int[4];
 
     /**
      * Default constructor, does nothing.
@@ -66,8 +68,12 @@ public class BradicalAgent implements Agent {
      * @return the action the player takes.
      **/
     public Action doAction(State s) {
+
         if (firstAction) {
             init(s);
+            for (int j = 0; j < 4; j++) {
+                playOrder[j] = j;
+            }
         }
         // Assume players index is sgetNextPlayer()
         index = s.getNextPlayer();
@@ -78,13 +84,14 @@ public class BradicalAgent implements Agent {
             // This if rule acts as a semi-safe "hail mary" for when the game draws to a
             // close
             if (a == null && s.getFuseTokens() > 1 && s.getFinalActionIndex() != -1) {
-                a = playKnown(s);
+                System.out.println(Arrays.toString(playOrder));
+                a = playKnown(s, playOrder);
                 if (a == null) {
-                    a = playGuess(s);
+                    a = playGuess(s, playOrder);
                 }
             }
             if (a == null) {
-                a = playKnown(s);
+                a = playKnown(s, playOrder);
             }
             // This if rule takes a risk if it is reasonably safe to do so (60% probability)
             if (a == null && s.getFuseTokens() > 1) {
@@ -93,6 +100,8 @@ public class BradicalAgent implements Agent {
 
             // Tell anyone About Useful --> Go around players until can provide useful hint
             // Need to fix issue with this and tell dispensible to not repeat given hints
+
+            // TODO CHANGE TO NEXT PLAYER
             if (a == null)
                 a = tellAnyoneAboutUseful(s);
 
@@ -159,11 +168,24 @@ public class BradicalAgent implements Agent {
     }
 
     // plays the first card known to be playable.
-    public Action playKnown(State s) throws IllegalActionException {
+    public Action playKnown(State s, int[] playOrder) throws IllegalActionException {
         for (int i = 0; i < colours.length; i++) {
             if (colours[i] != null && values[i] == playable(s, colours[i])) {
                 colours[i] = null;
                 values[i] = 0;
+
+                // Updates array for finding oldest card in hand
+                int j = 1;
+                int temp = playOrder[0];
+                playOrder[0] = i;
+
+                while (j < i) {
+                    int newTemp = playOrder[j];
+                    playOrder[j] = temp;
+                    temp = newTemp;
+                    j++;
+                }
+
                 return new Action(index, toString(), ActionType.PLAY, i);
             }
         }
@@ -188,7 +210,8 @@ public class BradicalAgent implements Agent {
     // a hand should be the first card in the hnad
     public Action discardOldest(State s) throws IllegalActionException {
         if (s.getHintTokens() != 8) {
-            return new Action(index, toString(), ActionType.DISCARD, 0);
+            System.out.println("DISCARDING OLDEST");
+            return new Action(index, toString(), ActionType.DISCARD, playOrder[0]);
         }
         return null;
     }
@@ -196,7 +219,8 @@ public class BradicalAgent implements Agent {
     /**
      * Starting from next player, cycling through all players, tells a hint
      * regarding a card that can be discarded TODO ADD "IF FIREWORK IS COMPLETE GIVE
-     * HINT ON COLOURS OF SAID FIREWORK"
+     * HINT ON COLOURS OF SAID FIREWORK" Basically if they dont know about what
+     * makes it useless, tell them the information required to make them see it
      * 
      * @param s the current state of the game
      * @return the action of providing the hint
@@ -259,13 +283,26 @@ public class BradicalAgent implements Agent {
     }
 
     // with probability 0.05 for each fuse token, play a random card
-    public Action playGuess(State s) throws IllegalActionException {
+    public Action playGuess(State s, int[] playOrder) throws IllegalActionException {
         java.util.Random rand = new java.util.Random();
         for (int i = 0; i < s.getFuseTokens(); i++) {
             if (rand.nextDouble() < 0.05) {
                 int cardIndex = rand.nextInt(colours.length);
                 colours[cardIndex] = null;
                 values[cardIndex] = 0;
+
+                // Updates array for finding oldest card in hand
+                int j = 1;
+                int temp = playOrder[0];
+                playOrder[0] = i;
+
+                while (j < i) {
+                    int newTemp = playOrder[j];
+                    playOrder[j] = temp;
+                    temp = newTemp;
+                    j++;
+                }
+
                 return new Action(index, toString(), ActionType.PLAY, cardIndex);
             }
         }
