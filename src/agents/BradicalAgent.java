@@ -82,7 +82,6 @@ public class BradicalAgent implements Agent {
             Action a = null;
             // A semi safe "hail mary" if the game draws to a close
             if (a == null && s.getFuseTokens() > 1 && s.getFinalActionIndex() != -1) {
-                System.out.println(Arrays.toString(playOrder));
                 a = playKnown(s, playOrder);
                 if (a == null) {
                     a = playGuess(s, playOrder);
