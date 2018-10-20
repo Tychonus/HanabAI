@@ -196,7 +196,7 @@ public class BradicalAgent implements Agent {
      */
     public Action discardOldest(State s) throws IllegalActionException {
         if (s.getHintTokens() != 8) {
-            return new Action(index, toString(), ActionType.DISCARD, playOrder[0]);
+            return new Action(index, toString(), ActionType.DISCARD, playOrder[playOrder.length-1]);
         }
         return null;
     }
