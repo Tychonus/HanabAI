@@ -8,14 +8,11 @@ import java.util.Stack;
  * A Rule based AI agent, with the following rules outlined by the Piers
  * Strategy 1. If more than one life is left, and the deck has run out of cards,
  * Play a safe card, otherwise a random card if there is no safe cards 2. Play a
- * safe card 3. If more than one life is left, play a card which is probably
- * safe ('safe' factor of 0.6) 4. Tell any player about a useful card 5. If
- * there are less than 4 hint tokens remaining, tell a player about a definitely
- * unplayable card 6. Discard a card known to be useless 7. Give a random player
- * a random hint 8. Discard a random card //TODO TO FIX HINT REPETITION,
- * IMPLEMENT A "COOL OFF" PERIOD FOR HINTING ABOUT A SET CARD
- * 
- * Created via a modified BasicAgent(@author Tim French)
+ * safe card 3. Tell any player about a useful card 4. If there are less than 4
+ * hint tokens remaining, tell a player about a definitely unplayable card 5.
+ * Discard a card known to be useless 6. Give a random player a random hint 7.
+ * Discard a random card Created via a modified BasicAgent by Tim French
+ * (https://github.com/drtnf/HanabAI)
  * 
  * @author Brad Milner
  **/
@@ -27,6 +24,7 @@ public class BradicalAgent implements Agent {
     private int numPlayers;
     private int index;
 
+    // Used for discardOldest
     int[] playOrder = new int[4];
 
     /**
@@ -82,8 +80,7 @@ public class BradicalAgent implements Agent {
         try {
             getHints(s);
             Action a = null;
-            // This if rule acts as a semi-safe "hail mary" for when the game draws to a
-            // close
+            // A semi safe "hail mary" if the game draws to a close
             if (a == null && s.getFuseTokens() > 1 && s.getFinalActionIndex() != -1) {
                 System.out.println(Arrays.toString(playOrder));
                 a = playKnown(s, playOrder);
@@ -94,18 +91,9 @@ public class BradicalAgent implements Agent {
             if (a == null) {
                 a = playKnown(s, playOrder);
             }
-            // This if rule takes a risk if it is reasonably safe to do so (60% probability)
-            if (a == null && s.getFuseTokens() > 1) {
-                a = playProbablySafe(s);
-            }
-
-            // Tell anyone About Useful --> Go around players until can provide useful hint
-            // Need to fix issue with this and tell dispensible to not repeat given hints
-
-            // TODO CHANGE TO NEXT PLAYER
-            if (a == null)
+            if (a == null) {
                 a = tellAnyoneAboutUseful(s);
-
+            }
             // Tries to provide smarter hints once tokens become scarce
             if (a == null && s.getHintTokens() < 4) {
                 a = tellDispensible(s);
@@ -114,24 +102,17 @@ public class BradicalAgent implements Agent {
                 a = discardKnown(s);
             if (a == null)
                 a = hintRandom(s);
-            // Discards oldest card. With smart hints this has a reasonable chance of
-            // eliminating a useless card, not risking the discard if the deck is empty
+            // Discards oldest card
             if (a == null && s.getFinalActionIndex() == -1)
                 a = discardOldest(s);
             if (a == null)
                 a = discardGuess(s);
-
             return a;
 
         } catch (IllegalActionException e) {
             e.printStackTrace();
             throw new RuntimeException("Something has gone very wrong");
         }
-    }
-
-    public Action playProbablySafe(State s) throws IllegalActionException {
-
-        return null;
     }
 
     // updates colours and values from hints received
@@ -207,8 +188,13 @@ public class BradicalAgent implements Agent {
         return null;
     }
 
-    // Since cards are drawn by being popped from the deck stack, the oldest card in
-    // a hand should be the first card in the hnad
+    /**
+     * Discards the card which is held in the players hand the longest
+     * 
+     * @param s the state of the game
+     * @return the action of discarding the card
+     * @throws IllegalActionException
+     */
     public Action discardOldest(State s) throws IllegalActionException {
         if (s.getHintTokens() != 8) {
             return new Action(index, toString(), ActionType.DISCARD, playOrder[0]);
@@ -217,72 +203,109 @@ public class BradicalAgent implements Agent {
     }
 
     /**
-     * Starting from next player, cycling through all players, tells a hint
-     * regarding a card that can be discarded
+     * Starting from next player, cycles through all players, tells a hint regarding
+     * a card that can be discarded
      * 
      * @param s the current state of the game
      * @return the action of providing the hint
+     * @throws IllegalActionException
      */
     public Action tellDispensible(State s) throws IllegalActionException {
         if (s.getHintTokens() > 0) {
-            // Makes next player the hintee
-            int hintee = (index + 1) % numPlayers;
-            Card[] hand = s.getHand(hintee);
+            for (int i = 1; i < numPlayers; i++) {
+                // Makes next player the hintee
+                int hintee = (index + 1) % numPlayers;
+                Card[] hand = s.getHand(hintee);
 
-            // Finds cards which can be discarded
-            for (int j = 0; j < hand.length; j++) {
-                Card c = hand[j];
+                // Finds cards which can be discarded
+                for (int j = 0; j < hand.length; j++) {
+                    Card c = hand[j];
 
-                // If a firework is completed, return a colour hint
-                if (c != null && c.getValue() != playable(s, c.getColour()) && s.getFirework(c.getColour()) != null) {
-                    Stack<Card> firework = s.getFirework(c.getColour());
-                    if (firework.size() == 5) {
-                        boolean[] col = new boolean[hand.length];
-                        for (int k = 0; k < col.length; k++) {
-                            col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
+                    // If a firework is completed, return a colour hint
+                    if (c != null && c.getValue() != playable(s, c.getColour())
+                            && s.getFirework(c.getColour()) != null) {
+                        Stack<Card> firework = s.getFirework(c.getColour());
+                        if (firework.size() == 5) {
+                            boolean[] col = new boolean[hand.length];
+                            for (int k = 0; k < col.length; k++) {
+                                col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
+                            }
+                            return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
                         }
-                        return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
                     }
-                }
-                // If card can be discarded, return action of hint of value
-                if (c != null && c.getValue() != playable(s, c.getColour())) {
-                    boolean[] val = new boolean[hand.length];
-                    for (int k = 0; k < val.length; k++) {
-                        val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
-                    }
-                    return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
-                }
-
-            }
-        }
-        return null;
-
-    }
-
-    // gives hint of first playable card in next players hand
-    // flips a coin to determine whether it is a colour hint or value hint
-    // return null if no hint token left, or no playable cards
-    public Action tellAnyoneAboutUseful(State s) throws IllegalActionException {
-        if (s.getHintTokens() > 0) {
-            int hintee = (index + 1) % numPlayers;
-            Card[] hand = s.getHand(hintee);
-
-            for (int j = 0; j < hand.length; j++) {
-                Card c = hand[j];
-                if (c != null && c.getValue() == playable(s, c.getColour())) {
-                    // flip coin
-                    if (Math.random() > 0.5) {// give colour hint
-                        boolean[] col = new boolean[hand.length];
-                        for (int k = 0; k < col.length; k++) {
-                            col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
-                        }
-                        return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col, c.getColour());
-                    } else {// give value hint
+                    // If card can be discarded, return action of hint of value
+                    if (c != null && c.getValue() != playable(s, c.getColour())) {
                         boolean[] val = new boolean[hand.length];
                         for (int k = 0; k < val.length; k++) {
                             val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
                         }
                         return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                    }
+
+                }
+            }
+        }
+
+        return null;
+
+    }
+
+    // gives hint of a playable card in a players hand
+    // flips a coin to determine whether it is a colour hint or value hint
+    // return null if no hint token left, or no playable cards
+    public Action tellAnyoneAboutUseful(State s) throws IllegalActionException {
+        if (s.getHintTokens() > 0) {
+            for (int i = 1; i < numPlayers; i++) {
+                int hintee = (index + 1) % numPlayers;
+                Card[] hand = s.getHand(hintee);
+
+                // Random if hint cycle starts from beginning or end of hand
+                if (Math.random() > 0.5) {
+                    for (int j = 0; j < hand.length; j++) {
+                        Card c = hand[j];
+                        // If card is playable
+                        if (c != null && c.getValue() == playable(s, c.getColour())) {
+
+                            if (Math.random() > 0.5) {
+                                // Gives hint on colour
+                                boolean[] col = new boolean[hand.length];
+                                for (int k = 0; k < col.length; k++) {
+                                    col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
+                                }
+                                return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col,
+                                        c.getColour());
+                            }
+                            // Gives hint on value
+                            else {
+                                boolean[] val = new boolean[hand.length];
+                                for (int k = 0; k < val.length; k++) {
+                                    val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                                }
+                                return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                            }
+                        }
+                    }
+                } else {
+                    for (int j = 0; j < hand.length; j++) {
+                        Card c = hand[j];
+                        if (c != null && c.getValue() == playable(s, c.getColour())) {
+
+                            if (Math.random() > 0.5) {
+
+                                boolean[] col = new boolean[hand.length];
+                                for (int k = 0; k < col.length; k++) {
+                                    col[k] = c.getColour().equals((hand[k] == null ? null : hand[k].getColour()));
+                                }
+                                return new Action(index, toString(), ActionType.HINT_COLOUR, hintee, col,
+                                        c.getColour());
+                            } else {
+                                boolean[] val = new boolean[hand.length];
+                                for (int k = 0; k < val.length; k++) {
+                                    val[k] = c.getValue() == (hand[k] == null ? -1 : hand[k].getValue());
+                                }
+                                return new Action(index, toString(), ActionType.HINT_VALUE, hintee, val, c.getValue());
+                            }
+                        }
                     }
                 }
             }
